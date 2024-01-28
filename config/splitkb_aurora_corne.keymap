@@ -51,14 +51,5 @@
         >;
       };
 
-      adjust_layer {
-        display-name = "ADJUST";
-        bindings = <
-&sys_reset      &kp INS         &kp SLCK        &bt BT_CLR      &none           &none                                           &kp C_BRI_UP    &kp C_VOL_DN    &kp C_MUTE      &kp C_VOL_UP    &none          &sys_reset
-&kp CAPS        &bt BT_SEL 0    &bt BT_SEL 1    &bt BT_SEL 2    &none           &none                                           &kp C_BRI_DN    &kp C_PREV      &kp C_PP        &kp C_NEXT      &none          &none
-&none           &bt BT_SEL 3    &bt BT_SEL 4    &out OUT_TOG    &none           &none                                           &none           &none           &none           &none           &none          &none
-                                                                &trans          &trans          &trans          &trans          &trans          &trans
-        >;
-      };
    };
 };
