@@ -7,6 +7,7 @@
 #include <behaviors.dtsi>
 #include <dt-bindings/zmk/keys.h>
 #include <dt-bindings/zmk/bt.h>
+#include <dt-bindings/zmk/outputs.h>
 
 / {
    conditional_layers {
@@ -29,6 +30,7 @@
                                                                 &kp LGUI        &mo 1           &kp RET         &kp SPACE       &mo 2           &kp RALT
           >;
         };
+
         lower_layer {
           display-name = "LOWER";
           bindings = <
@@ -38,19 +40,21 @@
                                                                 &trans          &trans          &trans          &trans          &trans          &trans
           >;
         };
+
         raise_layer {
           display-name = "RAISE";
           bindings = <
 &trans          &kp F1          &kp F2          &kp F3          &kp F4          &kp F5                                          &kp F6          &kp LC(LEFT)    &kp UP          &kp LC(RIGHT)   &kp PG_UP       &kp DEL
 &trans          &kp F7          &kp F8          &kp F9          &kp F10         &kp F11                                         &kp F12         &kp LEFT        &kp DOWN        &kp RIGHT       &kp PG_DOWN     &kp RET
-&trans          &kp UNDO        &kp K_CUT       &kp K_COPY      &kp K_PASTE     &kp K_REDO                                      &kp PSCRN       &kp HOME        &none           &kp END         &none           &none
+&trans          &kp C_AC_UNDO   &kp C_AC_CUT    &kp C_AC_PASTE  &kp C_AC_PASTE  &kp C_AC_REDO                                   &kp PSCRN       &kp HOME        &none           &kp END         &none           &none
                                                                 &trans          &trans          &trans          &trans          &trans          &trans
           >;
         };
+
         adjust_layer {
           display-name = "ADJUST";
           bindings = <
-&sys_reset      &kp INS         &kp SLCK        &bt BT_CLR      &none           &none                                           &kp C_BRI_UP    &kp C_VOL_DOWN  &kp UP          &kp C_VOL_UP    &none          &none
+&sys_reset      &kp INS         &kp SLCK        &bt BT_CLR      &out OUT_TOG    &none                                           &kp C_BRI_UP    &kp C_VOL_DOWN  &kp UP          &kp C_VOL_UP    &none          &none
 &kp CAPS        &bt BT_SEL 0    &bt BT_SEL 1    &bt BT_SEL 2    &none           &none                                           &kp C_BRI_DOWN  &kp C_PREV      &kp C_PP        &kp C_NEXT      &none          &none
 &none           &bt BT_SEL 3    &bt BT_SEL 4    &bt BT_SEL 5    &none           &none                                           &none           &none           &none           &none           &none          &none
                                                                 &trans          &trans          &trans          &trans          &trans          &trans
