@@ -50,7 +50,7 @@
                   bindings = <
 &trans          &kp F1          &kp F2          &kp F3          &kp F4          &kp F5                                          &kp F6          &kp LC(LEFT)    &kp UP          &kp LC(RIGHT)   &kp PG_UP       &kp DEL
 &trans          &kp F7          &kp F8          &kp F9          &kp F10         &kp F11                                         &kp F12         &kp LEFT        &kp DOWN        &kp RIGHT       &kp PG_DOWN     &kp RET
-&trans          &kp UNDO        &kp K_CUT       &kp K_COPY      &kp K_PASTE     &kp K_REDO                                      &kp PSCRN       &kp HOME        &none           &KP END         &none           &none
+&trans          &kp UNDO        &kp K_CUT       &kp K_COPY      &kp K_PASTE     &kp K_REDO                                      &kp PSCRN       &kp HOME        &none           &kp END         &none           &none
                                                                 &trans          &trans          &trans          &trans          &trans          &trans
                   >;
                 };
