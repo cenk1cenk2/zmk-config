@@ -44,9 +44,9 @@
       raise_layer {
         display-name = "RAISE";
         bindings = <
-&trans          &kp F1          &kp F2          &kp F3          &kp F4          &kp F5                                          &kp F6          &kp LC(LEFT)    &kp UP          &kp LC(RIGHT)   &kp PG_UP       &kp DEL
-&trans          &kp F7          &kp F8          &kp F9          &kp F10         &kp F11                                         &kp F12         &kp LEFT        &kp DOWN        &kp RIGHT       &kp PG_DN       &kp RET
-&trans          &none           &none           &none           &none           &none                                           &kp PSCRN       &kp HOME        &none           &kp END         &none           &none
+&trans          &kp F1          &kp F2          &kp F3          &kp F4          &none                                           &none           &kp LC(LEFT)    &kp UP          &kp LC(RIGHT)   &kp PG_UP       &kp DEL
+&trans          &kp F5          &kp F6          &kp F7          &kp F8          &none                                           &none           &kp LEFT        &kp DOWN        &kp RIGHT       &kp PG_DN       &kp RET
+&trans          &kp F9          &kp F10         &kp F11         &kp F12         &none                                           &kp PSCRN       &kp HOME        &none           &kp END         &none           &none
                                                                 &trans          &trans          &trans          &trans          &trans          &trans
         >;
       };
