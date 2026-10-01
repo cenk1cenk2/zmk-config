@@ -1,0 +1,175 @@
+---
+# https://taskfile.dev
+
+version: "3"
+
+# Every task logs its own steps; task's echo of each command buries them.
+silent: true
+
+vars:
+  REPO: cenk1cenk2/zmk-config
+  DIST: dist
+  # The west workspace lives apart from the repo root, since west init -l config
+  # would otherwise check zmk, zephyr and modules out next to this repo's own
+  # zephyr/ module directory. CI isolates it into a temporary directory the same way.
+  ZMK_HOME: "{{.ROOT_DIR}}/.zmk"
+  ZMK_REPO: https://github.com/zmkfirmware/zmk.git
+  # Keep in sync with the zmk revision in config/west.yml.
+  ZMK_REVISION: main
+  ZMK_IMAGE: docker.io/zmkfirmware/zmk-build-arm:stable
+  BOARD: nice_nano//zmk
+
+tasks:
+  zmk:sync:
+    desc: Put the local west workspace on the zmk revision CI builds, initialising it if absent.
+    status:
+      - cmp -s config/west.yml {{.ZMK_HOME}}/config/west.yml
+      - test "$(git -C {{.ZMK_HOME}}/zmk rev-parse HEAD 2>/dev/null)" = "$(git ls-remote {{.ZMK_REPO}} refs/heads/{{.ZMK_REVISION}} | cut -f1)"
+    cmds:
+      - echo "==> Syncing west workspace {{.ZMK_HOME}} to zmk {{.ZMK_REVISION}}"
+      - mkdir -p {{.ZMK_HOME}}/config
+      - cp config/west.yml {{.ZMK_HOME}}/config/west.yml
+      - |
+        if [ ! -d {{.ZMK_HOME}}/.west ]; then
+          echo "==> Initialising west workspace"
+          task west -- init -l config
+        fi
+      - task: west
+        vars:
+          CLI_ARGS: update --fetch-opt=--filter=tree:0
+
+  west:
+    desc: Run west inside the ZMK build container against the local workspace.
+    cmds:
+      # podman runs rootful here, so without --user the workspace ends up owned by
+      # root and host git refuses it as dubious ownership.
+      - podman run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "{{.ROOT_DIR}}:{{.ROOT_DIR}}:Z" -w "{{.ZMK_HOME}}" {{.ZMK_IMAGE}} sh -c '[ ! -d zephyr ] || west zephyr-export >/dev/null; west {{.CLI_ARGS}}'
+
+  clean:
+    desc: Remove downloaded and compiled firmware.
+    cmds:
+      - echo "==> Removing {{.DIST}} and {{.ZMK_HOME}}/build"
+      - rm -rf {{.DIST}} {{.ZMK_HOME}}/build
+
+  compile:corne:left:
+    desc: Compile the left half of the splitkb Aurora Corne.
+    cmds:
+      - task: compile
+        vars:
+          SHIELD: splitkb_aurora_corne_left
+
+  compile:corne:right:
+    desc: Compile the right half of the splitkb Aurora Corne.
+    cmds:
+      - task: compile
+        vars:
+          SHIELD: splitkb_aurora_corne_right
+
+  compile:settings_reset:
+    desc: Compile the settings reset firmware.
+    cmds:
+      - task: compile
+        vars:
+          SHIELD: settings_reset
+
+  download:
+    desc: Download the latest successful CI build of every target from main.
+    cmds:
+      - |
+        set -e
+        run="$(gh api "repos/{{.REPO}}/actions/artifacts?name=firmware" -q '[.artifacts[] | select(.workflow_run.head_branch == "main" and (.expired | not))][0].workflow_run.id')"
+        if [ -z "${run}" ]; then
+          echo "No unexpired firmware artifact on main." >&2
+          exit 1
+        fi
+        echo "==> Downloading firmware from https://github.com/{{.REPO}}/actions/runs/${run}"
+        mkdir -p {{.DIST}}
+        gh run download "${run}" -R {{.REPO}} -n firmware -D {{.DIST}}
+        ls -l {{.DIST}}
+
+  flash:corne:left:
+    desc: Flash the left half. Double-tap reset on that half when prompted.
+    cmds:
+      - task: flash
+        vars:
+          SHIELD: splitkb_aurora_corne_left
+
+  flash:corne:right:
+    desc: Flash the right half. Double-tap reset on that half when prompted.
+    cmds:
+      - task: flash
+        vars:
+          SHIELD: splitkb_aurora_corne_right
+
+  flash:settings_reset:
+    desc: Flash the settings reset firmware, then reflash the half's keymap afterwards.
+    cmds:
+      - task: flash
+        vars:
+          SHIELD: settings_reset
+
+  compile:
+    internal: true
+    requires:
+      vars:
+        - SHIELD
+    vars:
+      # Named the way CI names its artifacts, so compiled and downloaded firmware
+      # land under the same path.
+      FIRMWARE: '{{.SHIELD}}-{{.BOARD | replace "/" "_"}}-zmk.uf2'
+    deps:
+      - zmk:sync
+    cmds:
+      - echo "==> Building {{.SHIELD}} for {{.BOARD}}"
+      - mkdir -p {{.DIST}}
+      - task: west
+        vars:
+          CLI_ARGS: build -p auto -s zmk/app -d build/{{.SHIELD}} -b {{.BOARD}} -- -DZMK_CONFIG={{.ROOT_DIR}}/config -DZMK_EXTRA_MODULES={{.ROOT_DIR}} -DSHIELD={{.SHIELD}}
+      - cp {{.ZMK_HOME}}/build/{{.SHIELD}}/zephyr/zmk.uf2 {{.DIST}}/{{.FIRMWARE}}
+      - echo "==> Wrote {{.DIST}}/{{.FIRMWARE}} ($(du -h {{.DIST}}/{{.FIRMWARE}} | cut -f1))"
+
+  flash:
+    internal: true
+    interactive: true
+    requires:
+      vars:
+        - SHIELD
+    vars:
+      FIRMWARE: '{{.SHIELD}}-{{.BOARD | replace "/" "_"}}-zmk.uf2'
+      DEVICE: /dev/disk/by-label/NICENANO
+    preconditions:
+      - sh: test -f {{.DIST}}/{{.FIRMWARE}}
+        msg: "{{.DIST}}/{{.FIRMWARE}} not found - run the matching download or compile task first."
+    cmds:
+      - |
+        set -e
+        echo "==> Flashing {{.DIST}}/{{.FIRMWARE}} ($(du -h {{.DIST}}/{{.FIRMWARE}} | cut -f1))"
+        echo "==> Waiting for {{.DEVICE}}, double-tap reset on the half to flash"
+        until [ -e {{.DEVICE}} ]; do sleep 0.5; done
+        echo "==> Found $(readlink -f {{.DEVICE}})"
+        target="$(findmnt -n -o TARGET {{.DEVICE}} || true)"
+        if [ -z "${target}" ]; then
+          echo "==> Mounting $(readlink -f {{.DEVICE}})"
+          udisksctl mount -b {{.DEVICE}} >/dev/null
+          target="$(findmnt -n -o TARGET {{.DEVICE}})"
+        fi
+        echo "==> Mounted at ${target}"
+        # The volume label alone is just a string any drive could carry; the UF2
+        # bootloader's own info file confirms this is a nice!nano in bootloader mode.
+        if ! grep -q "Board-ID: nRF52840-nicenano" "${target}/INFO_UF2.TXT"; then
+          echo "${target} is not a nice!nano bootloader:" >&2
+          cat "${target}/INFO_UF2.TXT" >&2 || true
+          exit 1
+        fi
+        echo "==> Verified $(grep -m1 "^UF2 Bootloader" "${target}/INFO_UF2.TXT" || echo "nice!nano bootloader")"
+        echo "==> Copying {{.FIRMWARE}}"
+        # oflag=sync makes the progress track writes reaching the device rather than
+        # the page cache. The bootloader reboots into the new firmware as soon as the
+        # last block lands, so a write error with the drive already gone is success.
+        if ! dd if={{.DIST}}/{{.FIRMWARE}} of="${target}/{{.FIRMWARE}}" bs=16K oflag=sync status=progress; then
+          if [ -e {{.DEVICE}} ]; then
+            echo "Copy to ${target} failed with the drive still attached." >&2
+            exit 1
+          fi
+        fi
+        echo "==> Flashed {{.FIRMWARE}}, the half reboots into the new firmware"
